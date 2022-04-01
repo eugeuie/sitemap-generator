@@ -1,9 +1,10 @@
-import os, time, logging
+import sys, time, logging
 import requests
 from collections import deque
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from lxml import etree
+from tabulate import tabulate
 from typing import Optional, Tuple, Callable, TypeVar, Any, cast
 
 
@@ -17,8 +18,6 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def measure_time(method: F) -> F:
-    """"""
-
     def timer(self, *args, **kwargs) -> None:
         start = time.time()
         method(self, *args, **kwargs)
@@ -28,8 +27,6 @@ def measure_time(method: F) -> F:
 
 
 class Crawler:
-    """"""
-
     def __init__(self, root_url: str) -> None:
         self.root_url = root_url
         self.processing_time = 0
@@ -66,22 +63,22 @@ class Crawler:
             and len(url_path) > 0
         )
 
-    def _open_url(self, url: str) -> Optional[bool]:
+    def _fetch_url(self, url: str) -> Optional[bool]:
         try:
             response = requests.get(url)
 
         except Exception as e:
-            print(url, e)
+            logging.info(f"URL [{url}] caused an exception [{e}]")
             return None
 
         return response if response.status_code == requests.codes.ok else None
-
+    
     @measure_time
     def _get_site_urls_dfs(self, url: str = None) -> None:
         if url is None:
             url = self.root_url
 
-        response = self._open_url(url)
+        response = self._fetch_url(url)
 
         if response:
             soup = BeautifulSoup(response.content, "html.parser")
@@ -114,7 +111,7 @@ class Crawler:
             url = self._site_urls_deque.popleft()
             self._seen_urls_set.add(url)
 
-            response = self._open_url(url)
+            response = self._fetch_url(url)
 
             if response:
                 if url != self.root_url:
@@ -144,18 +141,16 @@ class Crawler:
 
 
 class SitemapGenerator:
-    """"""
-
     def __init__(self, root_url) -> None:
         self.root_url = root_url
         self.processing_time = 0
         self.site_urls_count = 0
-        self.sitemap_filename = f"sitemaps/{urlparse(root_url).netloc}_sitemap"
+        self.sitemap_filename = f"sitemaps/{urlparse(root_url).netloc}_sitemap.xml"
         self._crawler = Crawler(root_url)
         self._site_urls = set()
 
     def _write_txt(self) -> None:
-        with open(f"{self.sitemap_filename}.txt", "wt", encoding="utf-8") as f:
+        with open(f"{self.sitemap_filename.split('.')[0]}.txt", "wt", encoding="utf-8") as f:
             f.writelines("\n".join(self._site_urls))
 
     def _write_xml(self) -> None:
@@ -169,34 +164,47 @@ class SitemapGenerator:
             url.append(loc)
             urlset.append(url)
 
-        with open(f"{self.sitemap_filename}.xml", "w", encoding="utf-8") as f:
+        with open(self.sitemap_filename, "w", encoding="utf-8") as f:
             f.writelines(
                 etree.tostring(
                     urlset, pretty_print=True, encoding="unicode", method="xml"
                 )
             )
 
-    def run(self) -> None:
+    def run(self) -> Tuple[str, float, int, str]:
         self._site_urls, self.processing_time = self._crawler.run()
         self.site_urls_count = len(self._site_urls)
-        self._write_txt()
+        # self._write_txt()
         self._write_xml()
         logging.info(
-            f"\nSITE: {self.root_url}\nPROCESSING TIME: {self.processing_time:.2f} sec\nURLS FOUND: {self.site_urls_count}\nSITEMAP FILENAME: {self.sitemap_filename}.xml\n"
+            f"\nSITE: {self.root_url}\nPROCESSING TIME: {self.processing_time:.2f} sec\nURLS FOUND: {self.site_urls_count}\nSITEMAP FILENAME: {self.sitemap_filename}\n\n"
         )
+        return self.root_url, round(self.processing_time, 2), self.site_urls_count, self.sitemap_filename
+
+
+def main():
+    urls = [
+        # "http://crawler-test.com/",
+        # "http://google.com/",
+        # "https://vk.com",
+        # "https://yandex.ru",
+        # "https://stackoverflow.com",
+        # "https://www.apple.com/",
+        "http://mathprofi.ru/"
+    ]
+    headers = ['site', 'processing time (sec)', 'URLs count', 'sitemap filename']
+    table = []
+    for url in urls:
+        sitemap_generator = SitemapGenerator(url)
+        results = sitemap_generator.run()
+        table.append(list(results))
+    
+    with open('results.md', 'w', encoding='utf-8') as f:
+        f.writelines(tabulate(table, headers, tablefmt="github"))
 
 
 if __name__ == "__main__":
-    # url_examples = [
-    #     "http://crawler-test.com/",
-    #     "http://google.com/",
-    #     "https://vk.com",
-    #     "https://yandex.ru",
-    #     "https://stackoverflow.com",
-    #     "https://www.apple.com/",
-    #     "http://mathprofi.ru/"
-    # ]
     # url = sys.argv[1]
-    url = "http://mathprofi.ru/"
-    sitemap_generator = SitemapGenerator(url)
-    sitemap_generator.run()
+    # sitemap_generator = SitemapGenerator(url)
+    # sitemap_generator.run()
+    main()
