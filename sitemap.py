@@ -105,8 +105,9 @@ class Crawler:
                 f"{len(self.site_urls_set)} URLs found, DELETED BAD URL [{url}]"
             )
 
-    @measure_time
+    # @measure_time
     def _get_site_urls_bfs(self) -> None:
+        start = time.time()
         while len(self._site_urls_deque):
             url = self._site_urls_deque.popleft()
             self._seen_urls_set.add(url)
@@ -134,6 +135,10 @@ class Crawler:
             else:
                 self._seen_urls_set.add(url)
                 continue
+
+            self.processing_time = time.time() - start
+            if self.processing_time > 1e3:
+                break
 
     def run(self) -> Tuple[set, float]:
         self._get_site_urls_bfs()
@@ -184,13 +189,13 @@ class SitemapGenerator:
 
 def main():
     urls = [
-        # "http://crawler-test.com/",
-        # "http://google.com/",
-        # "https://vk.com",
-        # "https://yandex.ru",
-        # "https://stackoverflow.com",
+        "http://crawler-test.com/",
+        "http://google.com/",
+        "https://vk.com",
+        "https://yandex.ru",
+        "https://stackoverflow.com",
         # "https://www.apple.com/",
-        "http://mathprofi.ru/"
+        # "http://mathprofi.ru/"
     ]
     headers = ['site', 'processing time (sec)', 'URLs count', 'sitemap filename']
     table = []
