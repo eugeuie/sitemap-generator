@@ -72,7 +72,7 @@ class Crawler:
             return None
 
         return response if response.status_code == requests.codes.ok else None
-    
+
     @measure_time
     def _get_site_urls_dfs(self, url: str = None) -> None:
         if url is None:
@@ -155,7 +155,9 @@ class SitemapGenerator:
         self._site_urls = set()
 
     def _write_txt(self) -> None:
-        with open(f"{self.sitemap_filename.split('.')[0]}.txt", "wt", encoding="utf-8") as f:
+        with open(
+            f"{self.sitemap_filename.split('.')[0]}.txt", "wt", encoding="utf-8"
+        ) as f:
             f.writelines("\n".join(self._site_urls))
 
     def _write_xml(self) -> None:
@@ -184,7 +186,12 @@ class SitemapGenerator:
         logging.info(
             f"\nSITE: {self.root_url}\nPROCESSING TIME: {self.processing_time:.2f} sec\nURLS FOUND: {self.site_urls_count}\nSITEMAP FILENAME: {self.sitemap_filename}\n\n"
         )
-        return self.root_url, round(self.processing_time, 2), self.site_urls_count, self.sitemap_filename
+        return (
+            self.root_url,
+            round(self.processing_time, 2),
+            self.site_urls_count,
+            self.sitemap_filename,
+        )
 
 
 def main():
@@ -194,17 +201,15 @@ def main():
         "https://vk.com",
         "https://yandex.ru",
         "https://stackoverflow.com",
-        # "https://www.apple.com/",
-        # "http://mathprofi.ru/"
     ]
-    headers = ['site', 'processing time (sec)', 'URLs count', 'sitemap filename']
+    headers = ["site", "processing time (sec)", "URLs count", "sitemap filename"]
     table = []
     for url in urls:
         sitemap_generator = SitemapGenerator(url)
         results = sitemap_generator.run()
         table.append(list(results))
-    
-    with open('results.md', 'w', encoding='utf-8') as f:
+
+    with open("results.md", "w", encoding="utf-8") as f:
         f.writelines(tabulate(table, headers, tablefmt="github"))
 
 
